@@ -52,7 +52,7 @@ const ChatUI = () => {
     setOriginalSOP(sopText);
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/ai/analyze", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/ai/analyze`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -94,7 +94,7 @@ const ChatUI = () => {
           : "manual"
     }));
 
-    const res = await fetch("http://127.0.0.1:8000/automation/start-automation", {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/automation/start-automation`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ steps: mappedSteps })
@@ -113,7 +113,7 @@ const ChatUI = () => {
     setGeneratedCode("");
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/codegen/generate-code", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/codegen/generate-code`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
