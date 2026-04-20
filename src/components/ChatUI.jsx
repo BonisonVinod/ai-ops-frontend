@@ -4,285 +4,103 @@ const ChatUI = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [file, setFile] = useState(null);
-
   const [analysis, setAnalysis] = useState(null);
-  const [originalSOP, setOriginalSOP] = useState("");
-
-  const [architecture, setArchitecture] = useState([]);
-  const [generatedCode, setGeneratedCode] = useState("");
-
   const [loading, setLoading] = useState(false);
-  const [loadingStep, setLoadingStep] = useState(0);
-  const [loadingCode, setLoadingCode] = useState(false);
-
-  const [showPanel, setShowPanel] = useState(false);
-
+  const [llmChoice, setLlmChoice] = useState("prepaid");
   const chatEndRef = useRef(null);
 
-  const loadingMessages = [
-    "Understanding your process...",
-    "Breaking into steps...",
-    "Evaluating automation...",
-    "Preparing recommendations..."
-  ];
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, analysis, loading]);
-
-  // -------------------------------
-  // ANALYZE (RESTORED FULLY)
-  // -------------------------------
   const handleSend = async () => {
     if (!input && !file) return;
-
     setLoading(true);
-    setLoadingStep(0);
-
-    setTimeout(() => setLoadingStep(1), 800);
-    setTimeout(() => setLoadingStep(2), 1600);
-    setTimeout(() => setLoadingStep(3), 2400);
-
-    let sopText = input;
-
-    if (file) {
-      sopText = await file.text();
-    }
-
-    setOriginalSOP(sopText);
-
+    let sopText = input || (file ? await file.text() : "");
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/ai/analyze`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: sopText })
       });
-
       const data = await res.json();
-      const parsed = JSON.parse(data.analysis);
-
-      setAnalysis(parsed);
-
-      setMessages((prev) => [
-        ...prev,
-        { sender: "user", text: input || file?.name },
-        { sender: "ai", text: "Analysis ready ↓" }
-      ]);
-
-    } catch (err) {
-      console.error(err);
-    }
-
-    setLoading(false);
-    setInput("");
-    setFile(null);
-  };
-
-  // -------------------------------
-  // START AUTOMATION
-  // -------------------------------
-  const handleStartAutomation = async () => {
-    const mappedSteps = analysis.steps.map((s) => ({
-      name: s.step,
-      type:
-        s.automation === "Automatable"
-          ? "automatable"
-          : s.automation === "Needs clarity"
-          ? "needs_clarity"
-          : "manual"
-    }));
-
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/automation/start-automation`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ steps: mappedSteps })
-    });
-
-    const data = await res.json();
-    setArchitecture(data.architecture);
-  };
-
-  // -------------------------------
-  // FULL SYSTEM CODE
-  // -------------------------------
-  const handleGenerateFullCode = async () => {
-    setLoadingCode(true);
-    setShowPanel(true);
-    setGeneratedCode("");
-
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/codegen/generate-code`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "full",
-          architecture: architecture,
-	  steps: analysis.steps,
-	  process: originalSOP
-        })
-      });
-
-      const data = await res.json();
-      setGeneratedCode(data.code);
-
-    } catch (err) {
-      console.error(err);
-    }
-
-    setLoadingCode(false);
+      setAnalysis(data.analysis);
+      setMessages([...messages, { sender: "user", text: input || `File: ${file?.name}` }, { sender: "ai", text: "Strategic Analysis Complete." }]);
+    } catch (err) { console.error(err); }
+    setLoading(false); setInput(""); setFile(null);
   };
 
   return (
-    <div style={{ display: "flex" }}>
+    <div style={{ padding: "20px", maxWidth: "900px", margin: "0 auto", fontFamily: "sans-serif" }}>
+      <h2>⚡ Agentic Mind: Workforce Augmentation</h2>
 
-      {/* MAIN UI */}
-      <div style={{ flex: 1, padding: "20px" }}>
-	<div style={{ display: "flex", justifyContent: "space-between" }}>
-  <h2>⚡ AI Automation Consultant</h2>
-
-  {generatedCode && (
-    <button onClick={() => setShowPanel(true)}>
-      📂 View Generated Code
-    </button>
-  )}
-</div>        
-
-        {/* CHAT */}
-        <div style={chatBox}>
-          {messages.map((msg, i) => (
-            <div key={i} style={{ textAlign: msg.sender === "user" ? "right" : "left" }}>
-              <span style={msg.sender === "user" ? userBubble : aiBubble}>
-                {msg.text}
-              </span>
-            </div>
-          ))}
-
-          {loading && (
-            <div>
-              <span style={aiBubble}>
-                🔄 {loadingMessages[loadingStep]}
-              </span>
-            </div>
-          )}
-
-          <div ref={chatEndRef} />
-        </div>
-
-        {/* INPUT (RESTORED FILE UPLOAD) */}
-        <div style={{ display: "flex", gap: "10px" }}>
-          <input type="file" onChange={(e) => setFile(e.target.files[0])} />
-
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Describe SOP"
-            style={{ flex: 1 }}
-          />
-
-          <button onClick={handleSend}>
-            Analyze
-          </button>
-        </div>
-
-        {/* ANALYSIS */}
-        {analysis && (
-          <>
-            <button onClick={handleStartAutomation}>
-              Start Automation
-            </button>
-
-            <button onClick={handleGenerateFullCode}>
-              🚀 Generate Full System
-            </button>
-
-            <div style={card}>
-              <h3>🧠 Summary</h3>
-              <p>{analysis.process_understanding}</p>
-            </div>
-
-            <div style={card}>
-              <h3>⚙️ Steps</h3>
-              {analysis.steps?.map((s, i) => (
-                <div key={i}>
-                  <strong>{s.step}</strong> — {s.automation}
-                </div>
-              ))}
-            </div>
-
-            {/* ARCHITECTURE */}
-            {architecture.length > 0 && (
-              <div style={card}>
-                <h3>🏗️ Architecture</h3>
-                {architecture.map((c, i) => (
-                  <div key={i}>
-                    <b>{c.name}</b>
-                    <p>{c.description}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
+      <div style={chatBox}>
+        {messages.map((msg, i) => (
+          <div key={i} style={{ textAlign: msg.sender === "user" ? "right" : "left", margin: "10px 0" }}>
+            <span style={msg.sender === "user" ? userBubble : aiBubble}>{msg.text}</span>
+          </div>
+        ))}
+        {loading && <p>🔍 Calculating ROI & Salary Benchmarks...</p>}
+        <div ref={chatEndRef} />
       </div>
 
-      {/* SIDE PANEL */}
-      {showPanel && (
-        <div style={{
-          width: "40%",
-          borderLeft: "1px solid #eee",
-          padding: "15px",
-          background: "#fafafa",
-          overflowY: "auto"
-        }}>
-	  <div style={{ display: "flex", justifyContent: "space-between" }}>
-  <h3>💻 Generated System</h3>
-  <button onClick={() => setShowPanel(false)}>❌</button>
-</div>          
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
+        <input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Paste JD or SOP..." style={{ padding: "12px", borderRadius: "8px", border: "1px solid #ccc" }} />
+        <div style={fileUploadArea}><input type="file" onChange={(e) => setFile(e.target.files[0])} /></div>
+        <button onClick={handleSend} style={primaryBtn}>Generate Business Case</button>
+      </div>
 
-          <h3>💻 Generated System</h3>
+      {analysis && (
+        <div style={dashboardCard}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h3 style={{ color: "#007bff", margin: 0 }}>📊 {analysis.type} Analysis</h3>
+            <span style={{ background: "#dcfce7", color: "#166534", padding: "4px 12px", borderRadius: "20px", fontSize: "0.8rem", fontWeight: "bold" }}>
+              {analysis.business_metrics.verdict}
+            </span>
+          </div>
 
-          {loadingCode ? (
-            <p>⚡ Building full system...</p>
-          ) : (
-            <pre style={{ whiteSpace: "pre-wrap" }}>
-              {generatedCode}
-            </pre>
+          {/* BUNDLING ADVICE (The Upsell) */}
+          <div style={{ margin: "15px 0", padding: "12px", background: "#fffbeb", border: "1px solid #fef3c7", borderRadius: "8px", color: "#92400e", fontSize: "0.9rem" }}>
+            💡 <b>Maxmize ROI:</b> {analysis.bundling_advice}
+          </div>
+
+          <div style={statsGrid}>
+            <div style={statItem}><h3>{analysis.business_metrics.score}%</h3><p>Efficiency Gain</p></div>
+            <div style={statItem}><h3>{analysis.business_metrics.one_time_setup}</h3><p>Setup Fee (20% ROI)</p></div>
+            <div style={statItem}><h3>{analysis.business_metrics.effort_level}</h3><p>Timeline</p></div>
+          </div>
+
+          {analysis.agent_skills && (
+            <div style={{ marginBottom: "20px" }}>
+              <p style={{ margin: "0 0 8px 0", fontWeight: "bold", fontSize: "0.9rem" }}>Digital Skills Covered:</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
+                {analysis.agent_skills.map((s, i) => <span key={i} style={skillTag}>{s}</span>)}
+              </div>
+            </div>
           )}
+
+          <div style={billingSection}>
+            <p><b>Monthly Subscription:</b> {analysis.business_metrics.monthly_subscription}</p>
+            <p style={{ fontSize: "0.85rem", color: "#666" }}><b>LLM Credits:</b> {analysis.business_metrics.llm_option}</p>
+          </div>
+
+          <button onClick={() => window.alert("Initiating Deployment...")} style={deployBtn}>
+            Deploy Digital Co-worker
+          </button>
         </div>
       )}
     </div>
   );
 };
 
-// styles
-const chatBox = {
-  height: "250px",
-  overflowY: "auto",
-  border: "1px solid #eee",
-  padding: "10px",
-  borderRadius: "10px",
-  marginBottom: "15px"
-};
-
-const userBubble = {
-  background: "#007bff",
-  color: "white",
-  padding: "8px",
-  borderRadius: "10px"
-};
-
-const aiBubble = {
-  background: "#f1f1f1",
-  padding: "8px",
-  borderRadius: "10px"
-};
-
-const card = {
-  border: "1px solid #eee",
-  padding: "10px",
-  marginTop: "10px"
-};
+// --- STYLES ---
+const chatBox = { height: "180px", overflowY: "auto", background: "#f8fafc", padding: "15px", borderRadius: "10px", marginBottom: "20px", border: "1px solid #e2e8f0" };
+const userBubble = { background: "#007bff", color: "white", padding: "10px", borderRadius: "15px" };
+const aiBubble = { background: "#fff", border: "1px solid #e2e8f0", padding: "10px", borderRadius: "15px" };
+const dashboardCard = { padding: "25px", borderRadius: "12px", background: "#fff", border: "1px solid #007bff", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)" };
+const statsGrid = { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", margin: "15px 0" };
+const statItem = { background: "#f8fafc", padding: "15px", borderRadius: "8px", textAlign: "center" };
+const skillTag = { background: "#f1f5f9", padding: "4px 10px", borderRadius: "12px", fontSize: "0.75rem", color: "#475569", border: "1px solid #e2e8f0" };
+const billingSection = { textAlign: "left", margin: "15px 0", borderTop: "1px solid #f1f5f9", paddingTop: "15px" };
+const fileUploadArea = { background: "#fff", padding: "10px", borderRadius: "8px", border: "1px dashed #ccc", marginBottom: "10px" };
+const primaryBtn = { width: "100%", padding: "12px", background: "#007bff", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold" };
+const deployBtn = { width: "100%", padding: "15px", background: "#0f172a", color: "white", border: "none", borderRadius: "8px", fontSize: "18px", fontWeight: "bold", cursor: "pointer" };
 
 export default ChatUI;
